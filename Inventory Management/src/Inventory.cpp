@@ -37,8 +37,8 @@ void Inventory::listAllProducts() const {
 bool Inventory::updateQuantity(int productId, int change) {
     Product* p = findProduct(productId);
     if (!p) return false;
-    int newQty = p->getQuantity() + change;
-    if (newQty < 0) return false;
-    p->setQuantity(newQty);
+   
+    if (change < 0) return false;
+    p->setQuantity(change);
     return true;
 }

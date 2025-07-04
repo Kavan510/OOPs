@@ -6,7 +6,6 @@ Product::Product(int id, const std::string& name, double price, int quantity){
     this->price=price;
     this->quantity= quantity;
 }
-    // : id(id), name(name), price(price), quantity(quantity) {}
 
 int Product::getId() const {
     return id;
