@@ -1,7 +1,12 @@
-#include<bits/stdc++.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <deque>
+#include <stdexcept>
 
 using namespace std;
 
+// Enums for employee rank and call state
 enum class Rank {
     OPERATOR = 0,
     SUPERVISOR = 1,
@@ -14,6 +19,7 @@ enum class CallState {
     COMPLETE = 2
 };
 
+// Forward declarations
 class Call;
 class CallCenter;
 
@@ -59,21 +65,25 @@ public:
 
     void dispatch_call(Call* call);
     Employee* _dispatch_call(Call* call, vector<Employee*>& employees);
-    void notify_call_escalated(Call* call) {}
-    void notify_call_completed(Call* call) {}
-    void dispatch_queued_call_to_newly_freed_employee(Call* call, Employee* employee) {}
+    void notify_call_escalated(Call* call);
+    void notify_call_completed(Call* call);
+    void dispatch_queued_call_to_newly_freed_employee(Employee* employee);
 };
 
 void Employee::take_call(Call* c) {
     call = c;
     call->employee = this;
     call->state = CallState::IN_PROGRESS;
+    cout << "Call taken by employee ID " << employee_id << endl;
 }
 
 void Employee::complete_call() {
     if (call) {
         call->state = CallState::COMPLETE;
+        cout << "Call completed by employee ID " << employee_id << endl;
         call_center->notify_call_completed(call);
+        call = nullptr;
+        call_center->dispatch_queued_call_to_newly_freed_employee(this);
     }
 }
 
@@ -92,6 +102,8 @@ public:
         : Employee(id, name, Rank::OPERATOR, center) {}
 
     void escalate_call() override {
+        if (!call) return;
+        cout << "Call escalated by Operator ID " << employee_id << endl;
         call->rank = Rank::SUPERVISOR;
         _escalate_call();
     }
@@ -103,6 +115,8 @@ public:
         : Employee(id, name, Rank::SUPERVISOR, center) {}
 
     void escalate_call() override {
+        if (!call) return;
+        cout << "Call escalated by Supervisor ID " << employee_id << endl;
         call->rank = Rank::DIRECTOR;
         _escalate_call();
     }
@@ -119,21 +133,22 @@ public:
 };
 
 void CallCenter::dispatch_call(Call* call) {
-    if (call->rank != Rank::OPERATOR && call->rank != Rank::SUPERVISOR && call->rank != Rank::DIRECTOR) {
-        throw invalid_argument("Invalid call rank");
-    }
-
     Employee* employee = nullptr;
+
     if (call->rank == Rank::OPERATOR) {
         employee = _dispatch_call(call, operators);
     }
-    if (call->rank == Rank::SUPERVISOR || !employee) {
+
+    if (!employee && call->rank <= Rank::SUPERVISOR) {
         employee = _dispatch_call(call, supervisors);
     }
-    if (call->rank == Rank::DIRECTOR || !employee) {
+
+    if (!employee && call->rank <= Rank::DIRECTOR) {
         employee = _dispatch_call(call, directors);
     }
+
     if (!employee) {
+        cout << "No employee available. Call queued.\n";
         queued_calls.push_back(call);
     }
 }
@@ -146,4 +161,27 @@ Employee* CallCenter::_dispatch_call(Call* call, vector<Employee*>& employees) {
         }
     }
     return nullptr;
+}
+
+void CallCenter::notify_call_escalated(Call* call) {
+    cout << "Call escalated to higher rank.\n";
+    dispatch_call(call);
+}
+
+void CallCenter::notify_call_completed(Call* call) {
+    cout << "Call completed and resources freed.\n";
+}
+
+void CallCenter::dispatch_queued_call_to_newly_freed_employee(Employee* employee) {
+    if (!queued_calls.empty()) {
+        for (auto it = queued_calls.begin(); it != queued_calls.end(); ++it) {
+            if (static_cast<int>((*it)->rank) <= static_cast<int>(employee->rank)) {
+                Call* call = *it;
+                queued_calls.erase(it);
+                employee->take_call(call);
+                cout << "Queued call assigned to employee ID " << employee->employee_id << endl;
+                return;
+            }
+        }
+    }
 }
